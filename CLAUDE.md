@@ -26,6 +26,11 @@ Application de génération de factures — interface React permettant de créer
 - `components.json` — Config shadcn (style: radix-nova, aliases @/)
 - `src/lib/utils.ts` — Helper `cn()` pour les classes CSS
 
+## Git Workflow
+- Committer après chaque fonctionnalité complète ou groupe de modifications cohérent (ex: "ajout du formulaire client", "correction du calcul TVA")
+- Ne pas attendre la fin du projet pour committer — commit régulier = sauvegarde régulière
+- Message de commit court et clair en français (ex: `git commit -m "ajout composant facture"`)
+
 ## Rules
 - **CRITICAL**: ALWAYS use shadcn/ui components first — check `npx shadcn add` before building anything custom
 - ALWAYS use path alias `@/` (ex: `@/components/ui/button`)
