@@ -1,87 +1,164 @@
+import { useState, useEffect } from "react"
+import { Eye, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { InvoiceForm } from "@/components/InvoiceForm"
+import { InvoicePreview } from "@/components/InvoicePreview"
+import type { InvoiceData } from "@/types/invoice"
+
+function localDateStr(offsetDays = 0): string {
+  const d = new Date()
+  d.setDate(d.getDate() + offsetDays)
+  return d.toLocaleDateString("en-CA")
+}
+
+const SENDER_KEY = "atelier_sender_info"
+const INVOICE_NUM_KEY = "atelier_last_invoice_num"
+
+function getNextInvoiceNumber(): string {
+  try {
+    const last = localStorage.getItem(INVOICE_NUM_KEY)
+    if (!last) return "INV-001"
+    const match = last.match(/^(.*?)(\d+)$/)
+    if (!match) return "INV-001"
+    const num = parseInt(match[2]) + 1
+    return `${match[1]}${String(num).padStart(match[2].length, "0")}`
+  } catch {
+    return "INV-001"
+  }
+}
+
+function getSavedSender(): Partial<InvoiceData> {
+  try {
+    const raw = localStorage.getItem(SENDER_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
+function createDefaultInvoice(): InvoiceData {
+  const saved = getSavedSender()
+  return {
+    senderName: saved.senderName ?? "",
+    senderCompany: saved.senderCompany ?? "",
+    senderAddress: saved.senderAddress ?? "",
+    senderEmail: saved.senderEmail ?? "",
+    senderPhone: saved.senderPhone ?? "",
+    senderSiret: saved.senderSiret ?? "",
+    senderLegalForm: saved.senderLegalForm ?? "",
+    senderVatNumber: saved.senderVatNumber ?? "",
+    clientName: "",
+    clientCompany: "",
+    clientAddress: "",
+    clientEmail: "",
+    invoiceNumber: getNextInvoiceNumber(),
+    invoiceDate: localDateStr(),
+    dueDate: localDateStr(30),
+    dueDatePreset: "30",
+    lineItems: [{ id: crypto.randomUUID(), description: "", quantity: 1, unitPrice: 0 }],
+    taxRate: saved.taxRate ?? 20,
+    vatExempt: saved.vatExempt ?? false,
+    discountPercent: 0,
+    logoUrl: "",
+    notes: "",
+    paymentTerms: "Virement bancaire",
+  }
+}
 
 function App() {
+  const [invoice, setInvoice] = useState<InvoiceData>(createDefaultInvoice)
+  const [showPreview, setShowPreview] = useState(false)
+
+  // Persistance localStorage — infos expéditeur
+  useEffect(() => {
+    try {
+      localStorage.setItem(SENDER_KEY, JSON.stringify({
+        senderName: invoice.senderName,
+        senderCompany: invoice.senderCompany,
+        senderAddress: invoice.senderAddress,
+        senderEmail: invoice.senderEmail,
+        senderPhone: invoice.senderPhone,
+        senderSiret: invoice.senderSiret,
+        senderLegalForm: invoice.senderLegalForm,
+        senderVatNumber: invoice.senderVatNumber,
+        taxRate: invoice.taxRate,
+        vatExempt: invoice.vatExempt,
+      }))
+    } catch { /* quota exceeded */ }
+  }, [
+    invoice.senderName, invoice.senderCompany, invoice.senderAddress,
+    invoice.senderEmail, invoice.senderPhone, invoice.senderSiret,
+    invoice.senderLegalForm, invoice.senderVatNumber, invoice.taxRate, invoice.vatExempt,
+  ])
+
+  // Persistance numéro de facture
+  useEffect(() => {
+    try {
+      localStorage.setItem(INVOICE_NUM_KEY, invoice.invoiceNumber)
+    } catch { /* quota exceeded */ }
+  }, [invoice.invoiceNumber])
+
   return (
-    <div className="min-h-svh bg-gradient-to-b from-background to-muted">
-      {/* Hero Section */}
-      <div className="container mx-auto px-4 py-16 sm:py-24">
-        <div className="flex flex-col items-center text-center space-y-8">
-          {/* Badge */}
-          <Badge variant="secondary" className="px-4 py-1.5 text-sm">
-            Powered by Vite + Tailwind v4 + shadcn/ui
-          </Badge>
-
-          {/* Main Heading */}
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight">
-            <span className="bg-gradient-to-r from-foreground via-foreground/80 to-foreground bg-clip-text">
-              ViteJS
-            </span>
-            <span className="text-primary"> Ready</span>
-          </h1>
-
-          {/* Subtitle */}
-          <p className="max-w-2xl text-lg sm:text-xl text-muted-foreground">
-            Your project is set up with the modern stack. Start building something amazing.
-          </p>
-
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 pt-4">
-            <Button size="lg" className="min-w-40">
-              Get Started
-            </Button>
-            <Button size="lg" variant="outline" className="min-w-40">
-              Documentation
-            </Button>
-          </div>
-
-          {/* Tech Stack */}
-          <div className="pt-12 flex flex-wrap justify-center gap-8 text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <div className="size-2 rounded-full bg-yellow-500" />
-              <span className="text-sm font-medium">Vite</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="size-2 rounded-full bg-cyan-500" />
-              <span className="text-sm font-medium">Tailwind v4</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="size-2 rounded-full bg-blue-500" />
-              <span className="text-sm font-medium">React</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="size-2 rounded-full bg-neutral-500" />
-              <span className="text-sm font-medium">shadcn/ui</span>
-            </div>
-          </div>
+    <div className="h-screen flex flex-col overflow-hidden">
+      {/* Header */}
+      <header className="no-print flex items-center justify-between px-4 md:px-6 py-3 border-b border-border/60 shrink-0">
+        <div className="flex items-center gap-2">
+          <span
+            className="text-sm font-extrabold text-primary uppercase"
+            style={{ fontFamily: "'Syne', sans-serif", letterSpacing: "0.12em" }}
+          >
+            Atelier
+          </span>
+          <span
+            className="text-sm font-extrabold uppercase text-foreground"
+            style={{ fontFamily: "'Syne', sans-serif", letterSpacing: "0.12em" }}
+          >
+            Invoice
+          </span>
         </div>
+
+        <div className="flex items-center gap-3">
+          <span className="hidden sm:block text-xs text-muted-foreground tabular-nums">
+            {invoice.invoiceNumber}
+          </span>
+          {/* Bouton mobile toggle */}
+          <Button
+            size="sm"
+            variant="outline"
+            className="md:hidden gap-2 text-xs"
+            onClick={() => setShowPreview(!showPreview)}
+          >
+            {showPreview ? (
+              <><FileText size={14} /> Formulaire</>
+            ) : (
+              <><Eye size={14} /> Aperçu</>
+            )}
+          </Button>
+        </div>
+      </header>
+
+      {/* Layout desktop : 2 colonnes */}
+      <div className="flex-1 hidden md:grid md:grid-cols-[460px_1fr] overflow-hidden">
+        <aside className="no-print overflow-y-auto border-r border-border/60">
+          <InvoiceForm value={invoice} onChange={setInvoice} />
+        </aside>
+        <main className="overflow-y-auto bg-muted/30">
+          <InvoicePreview data={invoice} />
+        </main>
       </div>
 
-      {/* Feature Cards */}
-      <div className="container mx-auto px-4 pb-16">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[
-            { title: "Lightning Fast", desc: "Instant HMR and optimized builds with Vite" },
-            { title: "Type Safe", desc: "Full TypeScript support out of the box" },
-            { title: "Beautiful UI", desc: "Pre-built components with shadcn/ui" },
-          ].map((feature) => (
-            <div
-              key={feature.title}
-              className="group rounded-xl border bg-card p-6 transition-colors hover:bg-accent"
-            >
-              <h3 className="font-semibold text-lg mb-2">{feature.title}</h3>
-              <p className="text-sm text-muted-foreground">{feature.desc}</p>
-            </div>
-          ))}
-        </div>
+      {/* Layout mobile : toggle formulaire / aperçu */}
+      <div className="flex-1 md:hidden overflow-y-auto">
+        {showPreview ? (
+          <div className="bg-muted/30 min-h-full">
+            <InvoicePreview data={invoice} />
+          </div>
+        ) : (
+          <div className="no-print">
+            <InvoiceForm value={invoice} onChange={setInvoice} />
+          </div>
+        )}
       </div>
-
-      {/* Footer */}
-      <footer className="border-t py-8">
-        <p className="text-center text-sm text-muted-foreground">
-          Edit <code className="font-mono bg-muted px-1.5 py-0.5 rounded">src/App.tsx</code> to get started
-        </p>
-      </footer>
     </div>
   )
 }

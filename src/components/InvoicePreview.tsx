@@ -35,13 +35,24 @@ export function InvoicePreview({ data }: InvoicePreviewProps) {
   const docRef = useRef<HTMLDivElement>(null)
   const [downloading, setDownloading] = useState(false)
 
-  const { subtotal, discountAmount, taxAmount, total } = useMemo(() => {
+  const { subtotal, discountAmount, taxByRate, total } = useMemo(() => {
     const subtotal = round2(data.lineItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0))
     const discountAmount = round2(subtotal * (data.discountPercent / 100))
-    const taxBase = round2(subtotal - discountAmount)
-    const taxAmount = data.vatExempt ? 0 : round2(taxBase * (data.taxRate / 100))
-    const total = round2(taxBase + taxAmount)
-    return { subtotal, discountAmount, taxAmount, total }
+    const discountFactor = 1 - data.discountPercent / 100
+
+    const taxByRate: Record<number, number> = {}
+    if (!data.vatExempt) {
+      for (const item of data.lineItems) {
+        const rate = item.taxRate ?? data.taxRate
+        if (rate <= 0) continue
+        const itemHT = round2(item.quantity * item.unitPrice * discountFactor)
+        taxByRate[rate] = round2((taxByRate[rate] ?? 0) + round2(itemHT * rate / 100))
+      }
+    }
+
+    const totalTax = round2(Object.values(taxByRate).reduce((s, v) => s + v, 0))
+    const total = round2(subtotal - discountAmount + totalTax)
+    return { subtotal, discountAmount, taxByRate, total }
   }, [data.lineItems, data.discountPercent, data.taxRate, data.vatExempt])
 
   const downloadPDF = async () => {
@@ -247,7 +258,7 @@ export function InvoicePreview({ data }: InvoicePreviewProps) {
 
         {/* Totaux */}
         <div className="px-10 pb-8">
-          <div className="ml-auto w-64 space-y-2 text-sm">
+          <div className="ml-auto w-72 space-y-2 text-sm">
             <div className="flex justify-between text-gray-600">
               <span>Sous-total HT</span>
               <span className="tabular-nums">{formatAmount(subtotal)} €</span>
@@ -263,15 +274,19 @@ export function InvoicePreview({ data }: InvoicePreviewProps) {
                 <span>TVA</span>
                 <span>Non applicable</span>
               </div>
-            ) : data.taxRate > 0 ? (
-              <div className="flex justify-between text-gray-600">
-                <span>TVA ({data.taxRate}%)</span>
-                <span className="tabular-nums">{formatAmount(taxAmount)} €</span>
-              </div>
-            ) : null}
+            ) : Object.keys(taxByRate).length === 0 ? null : (
+              Object.entries(taxByRate)
+                .sort(([a], [b]) => Number(a) - Number(b))
+                .map(([rate, amount]) => (
+                  <div key={rate} className="flex justify-between text-gray-600">
+                    <span>TVA {rate}%</span>
+                    <span className="tabular-nums">{formatAmount(amount)} €</span>
+                  </div>
+                ))
+            )}
             <div className="flex justify-between pt-3 border-t-2" style={accentBorderStyle}>
-              <span className="font-extrabold text-base" style={syneFontStyle}>TOTAL TTC</span>
-              <span className="font-extrabold text-base tabular-nums" style={syneFontStyle}>
+              <span className="font-extrabold text-base whitespace-nowrap" style={syneFontStyle}>TOTAL TTC</span>
+              <span className="font-extrabold text-base tabular-nums whitespace-nowrap" style={syneFontStyle}>
                 {formatAmount(total)} €
               </span>
             </div>
