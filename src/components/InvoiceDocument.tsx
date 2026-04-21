@@ -185,9 +185,11 @@ export function InvoiceDocument({ data, onChange, onReset }: Props) {
       img.src = dataUrl
       await new Promise<void>((resolve) => { img.onload = () => resolve() })
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
+      const margin = 0 // marges déjà incluses dans le padding de la feuille
       const pdfW = pdf.internal.pageSize.getWidth()
-      const pdfH = (img.height * pdfW) / img.width
-      pdf.addImage(dataUrl, "PNG", 0, 0, pdfW, pdfH)
+      const contentW = pdfW - margin * 2
+      const contentH = (img.height * contentW) / img.width
+      pdf.addImage(dataUrl, "PNG", margin, margin, contentW, contentH)
       pdf.save(`facture-${data.invoiceNumber || "XXX"}.pdf`)
     } catch (err) {
       console.error("Erreur PDF:", err)
@@ -210,7 +212,7 @@ export function InvoiceDocument({ data, onChange, onReset }: Props) {
   const tvaLabel = data.vatExempt ? "Exonéré" : data.taxRate > 0 ? `${data.taxRate}%` : "0%"
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "#f5f5f4" }}>
+    <div className="flex flex-col" style={{ minHeight: "100vh" }}>
 
       {/* ── HEADER ──────────────────────────────────────────────────────────── */}
       <header className="no-print sticky top-0 z-50 bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
@@ -283,11 +285,8 @@ export function InvoiceDocument({ data, onChange, onReset }: Props) {
       </header>
 
       {/* ── PAGE ────────────────────────────────────────────────────────────── */}
-      <main className="flex-1 py-10 px-4">
-        <div
-          ref={docRef}
-          className="bg-white max-w-[860px] mx-auto shadow-sm ring-1 ring-black/5 px-12 py-10"
-        >
+      <main className="invoice-page flex-1">
+        <div ref={docRef} className="a4-paper">
 
           {/* ── EN-TÊTE FACTURE ─────────────────────────────────────────────── */}
           <div className="flex items-start justify-between gap-8 mb-8">

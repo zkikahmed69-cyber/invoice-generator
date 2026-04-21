@@ -128,6 +128,39 @@
 }
 .editable[type="number"] { -moz-appearance: textfield; }
 
+/* ── Page de l'app (fond gris autour de la feuille) ─────────────────── */
+.invoice-page {
+    background: #f0f0f0;
+    min-height: 100vh;
+    padding-top: 32px;
+    padding-bottom: 48px;
+}
+
+/* ── Feuille A4 (794px = A4 à 96dpi) ───────────────────────────────── */
+.a4-paper {
+    background: white;
+    width: 794px;
+    min-height: 1123px;
+    padding: 60px;
+    margin: 0 auto;
+    box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.12),
+        0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+@media (max-width: 860px) {
+    .invoice-page {
+        padding-top: 0;
+        padding-bottom: 0;
+    }
+    .a4-paper {
+        width: 100%;
+        min-height: unset;
+        padding: 20px;
+        box-shadow: none;
+    }
+}
+
 /* ── Impression ─────────────────────────────────────────────────────── */
 @media print {
     .no-print {
