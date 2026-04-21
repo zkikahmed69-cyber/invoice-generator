@@ -8,12 +8,6 @@ function fmt(n: number) {
   return n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 function r2(n: number) { return Math.round(n * 100) / 100 }
-function fmtDate(s: string) {
-  if (!s) return ""
-  const [y, m, d] = s.split("-")
-  if (!y || !m || !d) return s
-  return `${d}/${m}/${y}`
-}
 
 // ─── Champ texte éditable inline ─────────────────────────────────────────────
 

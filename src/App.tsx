@@ -1,9 +1,13 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { InvoiceDocument } from "@/components/InvoiceDocument"
-import type { InvoiceData } from "@/types/invoice"
+import { InvoiceDashboard } from "@/components/InvoiceDashboard"
+import { Button } from "@/components/ui/button"
+import { Save, FilePlus, LayoutList, Check } from "lucide-react"
+import type { InvoiceData, SavedInvoice } from "@/types/invoice"
 
 const STORAGE_KEY = "atelier_invoice_v2"
 const NUM_KEY = "atelier_last_invoice_num"
+const SAVED_KEY = "atelier_saved_invoices"
 
 function localDateStr(offsetDays = 0): string {
   const d = new Date()
@@ -61,7 +65,26 @@ function createDefault(): InvoiceData {
   }
 }
 
+function loadSavedInvoices(): SavedInvoice[] {
+  try {
+    const raw = localStorage.getItem(SAVED_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) {
+        return parsed.filter(
+          (x) => x && typeof x.id === "string" && x.data && Array.isArray(x.data.lineItems)
+        )
+      }
+    }
+  } catch { /* ignore */ }
+  return []
+}
+
 function App() {
+  const [view, setView] = useState<"editor" | "dashboard">("editor")
+  const [isSaved, setIsSaved] = useState(false)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const [invoice, setInvoice] = useState<InvoiceData>(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY)
@@ -70,6 +93,8 @@ function App() {
     return createDefault()
   })
 
+  const [savedInvoices, setSavedInvoices] = useState<SavedInvoice[]>(loadSavedInvoices)
+
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(invoice))
@@ -77,12 +102,103 @@ function App() {
     } catch { /* quota */ }
   }, [invoice])
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(SAVED_KEY, JSON.stringify(savedInvoices))
+    } catch { /* quota */ }
+  }, [savedInvoices])
+
   const reset = () => {
     localStorage.removeItem(STORAGE_KEY)
     setInvoice(createDefault())
   }
 
-  return <InvoiceDocument data={invoice} onChange={setInvoice} onReset={reset} />
+  const saveInvoice = useCallback(() => {
+    const entry: SavedInvoice = {
+      id: crypto.randomUUID(),
+      savedAt: new Date().toISOString(),
+      data: invoice,
+    }
+    setSavedInvoices((prev) => [entry, ...prev])
+    setIsSaved(true)
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => setIsSaved(false), 2000)
+  }, [invoice])
+
+  const reuseInvoice = useCallback((id: string) => {
+    const found = savedInvoices.find((s) => s.id === id)
+    if (!found) return
+    const preset = found.data.dueDatePreset
+    const daysOffset = preset === "custom" ? 30 : parseInt(preset) || 30
+    setInvoice({
+      ...found.data,
+      invoiceNumber: nextNumber(),
+      invoiceDate: localDateStr(0),
+      dueDate: localDateStr(daysOffset),
+      lineItems: found.data.lineItems.map((li) => ({ ...li, id: crypto.randomUUID() })),
+    })
+    setView("editor")
+  }, [savedInvoices])
+
+  const deleteInvoice = useCallback((id: string) => {
+    setSavedInvoices((prev) => prev.filter((s) => s.id !== id))
+  }, [])
+
+  return (
+    <div>
+      <nav className="sticky top-0 z-50 bg-white border-b flex items-center justify-between px-4 py-2 no-print">
+        <div className="flex gap-1">
+          <Button
+            size="sm"
+            variant={view === "editor" ? "default" : "ghost"}
+            onClick={() => setView("editor")}
+          >
+            <FilePlus size={15} />
+            Créer une facture
+          </Button>
+          <Button
+            size="sm"
+            variant={view === "dashboard" ? "default" : "ghost"}
+            onClick={() => setView("dashboard")}
+          >
+            <LayoutList size={15} />
+            Mes Factures
+            {savedInvoices.length > 0 && (
+              <span className="ml-1 bg-primary/15 text-primary rounded-full text-xs px-1.5 py-0.5 font-medium">
+                {savedInvoices.length}
+              </span>
+            )}
+          </Button>
+        </div>
+        {view === "editor" && (
+          <Button size="sm" variant="outline" onClick={saveInvoice} disabled={isSaved}>
+            {isSaved ? (
+              <>
+                <Check size={15} />
+                Sauvegardé
+              </>
+            ) : (
+              <>
+                <Save size={15} />
+                Sauvegarder
+              </>
+            )}
+          </Button>
+        )}
+      </nav>
+
+      {view === "editor" && (
+        <InvoiceDocument data={invoice} onChange={setInvoice} onReset={reset} />
+      )}
+      {view === "dashboard" && (
+        <InvoiceDashboard
+          invoices={savedInvoices}
+          onReuse={reuseInvoice}
+          onDelete={deleteInvoice}
+        />
+      )}
+    </div>
+  )
 }
 
 export default App

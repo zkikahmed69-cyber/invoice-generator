@@ -46,3 +46,9 @@ export interface InvoiceData {
   notes: string
   paymentTerms: string
 }
+
+export interface SavedInvoice {
+  id: string
+  savedAt: string
+  data: InvoiceData
+}
