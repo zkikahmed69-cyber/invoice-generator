@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react"
-import { Eye, FileText } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { InvoiceForm } from "@/components/InvoiceForm"
-import { InvoicePreview } from "@/components/InvoicePreview"
+import { InvoiceDocument } from "@/components/InvoiceDocument"
 import type { InvoiceData } from "@/types/invoice"
+
+const STORAGE_KEY = "atelier_invoice_v2"
+const NUM_KEY = "atelier_last_invoice_num"
 
 function localDateStr(offsetDays = 0): string {
   const d = new Date()
@@ -11,53 +11,49 @@ function localDateStr(offsetDays = 0): string {
   return d.toLocaleDateString("en-CA")
 }
 
-const SENDER_KEY = "atelier_sender_info"
-const INVOICE_NUM_KEY = "atelier_last_invoice_num"
-
-function getNextInvoiceNumber(): string {
+function nextNumber(): string {
   try {
-    const last = localStorage.getItem(INVOICE_NUM_KEY)
-    if (!last) return "INV-001"
-    const match = last.match(/^(.*?)(\d+)$/)
-    if (!match) return "INV-001"
-    const num = parseInt(match[2]) + 1
-    return `${match[1]}${String(num).padStart(match[2].length, "0")}`
+    const last = localStorage.getItem(NUM_KEY)
+    if (!last) {
+      const y = new Date().getFullYear()
+      return `FA-${y}-001`
+    }
+    const m = last.match(/^(.*?)(\d+)$/)
+    if (!m) return `FA-${new Date().getFullYear()}-001`
+    const n = parseInt(m[2]) + 1
+    return `${m[1]}${String(n).padStart(m[2].length, "0")}`
   } catch {
-    return "INV-001"
+    return `FA-${new Date().getFullYear()}-001`
   }
 }
 
-function getSavedSender(): Partial<InvoiceData> {
-  try {
-    const raw = localStorage.getItem(SENDER_KEY)
-    return raw ? JSON.parse(raw) : {}
-  } catch {
-    return {}
-  }
-}
-
-function createDefaultInvoice(): InvoiceData {
-  const saved = getSavedSender()
+function createDefault(): InvoiceData {
   return {
-    senderName: saved.senderName ?? "",
-    senderCompany: saved.senderCompany ?? "",
-    senderAddress: saved.senderAddress ?? "",
-    senderEmail: saved.senderEmail ?? "",
-    senderPhone: saved.senderPhone ?? "",
-    senderSiret: saved.senderSiret ?? "",
-    senderLegalForm: saved.senderLegalForm ?? "",
-    senderVatNumber: saved.senderVatNumber ?? "",
+    senderName: "",
+    senderCompany: "",
+    senderAddress: "",
+    senderCity: "",
+    senderZip: "",
+    senderEmail: "",
+    senderPhone: "",
+    senderSiret: "",
+    senderLegalForm: "",
+    senderVatNumber: "",
     clientName: "",
     clientCompany: "",
     clientAddress: "",
+    clientCity: "",
+    clientZip: "",
     clientEmail: "",
-    invoiceNumber: getNextInvoiceNumber(),
+    clientSiren: "",
+    invoiceNumber: nextNumber(),
     invoiceDate: localDateStr(),
     dueDate: localDateStr(30),
     dueDatePreset: "30",
+    serviceDate: "",
     lineItems: [{ id: crypto.randomUUID(), description: "", quantity: 1, unitPrice: 0 }],
-    taxRate: saved.taxRate ?? 20,
-    vatExempt: saved.vatExempt ?? false,
+    taxRate: 20,
+    vatExempt: false,
     discountPercent: 0,
     logoUrl: "",
     notes: "",
@@ -66,101 +62,27 @@ function createDefaultInvoice(): InvoiceData {
 }
 
 function App() {
-  const [invoice, setInvoice] = useState<InvoiceData>(createDefaultInvoice)
-  const [showPreview, setShowPreview] = useState(false)
+  const [invoice, setInvoice] = useState<InvoiceData>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY)
+      if (raw) return { ...createDefault(), ...JSON.parse(raw) }
+    } catch { /* ignore */ }
+    return createDefault()
+  })
 
-  // Persistance localStorage — infos expéditeur
   useEffect(() => {
     try {
-      localStorage.setItem(SENDER_KEY, JSON.stringify({
-        senderName: invoice.senderName,
-        senderCompany: invoice.senderCompany,
-        senderAddress: invoice.senderAddress,
-        senderEmail: invoice.senderEmail,
-        senderPhone: invoice.senderPhone,
-        senderSiret: invoice.senderSiret,
-        senderLegalForm: invoice.senderLegalForm,
-        senderVatNumber: invoice.senderVatNumber,
-        taxRate: invoice.taxRate,
-        vatExempt: invoice.vatExempt,
-      }))
-    } catch { /* quota exceeded */ }
-  }, [
-    invoice.senderName, invoice.senderCompany, invoice.senderAddress,
-    invoice.senderEmail, invoice.senderPhone, invoice.senderSiret,
-    invoice.senderLegalForm, invoice.senderVatNumber, invoice.taxRate, invoice.vatExempt,
-  ])
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(invoice))
+      localStorage.setItem(NUM_KEY, invoice.invoiceNumber)
+    } catch { /* quota */ }
+  }, [invoice])
 
-  // Persistance numéro de facture
-  useEffect(() => {
-    try {
-      localStorage.setItem(INVOICE_NUM_KEY, invoice.invoiceNumber)
-    } catch { /* quota exceeded */ }
-  }, [invoice.invoiceNumber])
+  const reset = () => {
+    localStorage.removeItem(STORAGE_KEY)
+    setInvoice(createDefault())
+  }
 
-  return (
-    <div className="h-screen flex flex-col overflow-hidden">
-      {/* Header */}
-      <header className="no-print flex items-center justify-between px-4 md:px-6 py-3 border-b border-border/60 shrink-0">
-        <div className="flex items-center gap-2">
-          <span
-            className="text-sm font-extrabold text-primary uppercase"
-            style={{ fontFamily: "'Syne', sans-serif", letterSpacing: "0.12em" }}
-          >
-            Atelier
-          </span>
-          <span
-            className="text-sm font-extrabold uppercase text-foreground"
-            style={{ fontFamily: "'Syne', sans-serif", letterSpacing: "0.12em" }}
-          >
-            Invoice
-          </span>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <span className="hidden sm:block text-xs text-muted-foreground tabular-nums">
-            {invoice.invoiceNumber}
-          </span>
-          {/* Bouton mobile toggle */}
-          <Button
-            size="sm"
-            variant="outline"
-            className="md:hidden gap-2 text-xs"
-            onClick={() => setShowPreview(!showPreview)}
-          >
-            {showPreview ? (
-              <><FileText size={14} /> Formulaire</>
-            ) : (
-              <><Eye size={14} /> Aperçu</>
-            )}
-          </Button>
-        </div>
-      </header>
-
-      {/* Layout desktop : 2 colonnes */}
-      <div className="flex-1 hidden md:grid md:grid-cols-[460px_1fr] overflow-hidden">
-        <aside className="no-print overflow-y-auto border-r border-border/60">
-          <InvoiceForm value={invoice} onChange={setInvoice} />
-        </aside>
-        <main className="overflow-y-auto bg-muted/30">
-          <InvoicePreview data={invoice} />
-        </main>
-      </div>
-
-      {/* Layout mobile : toggle formulaire / aperçu */}
-      <div className="flex-1 md:hidden overflow-y-auto">
-        {showPreview ? (
-          <div className="bg-muted/30 min-h-full">
-            <InvoicePreview data={invoice} />
-          </div>
-        ) : (
-          <div className="no-print">
-            <InvoiceForm value={invoice} onChange={setInvoice} />
-          </div>
-        )}
-      </div>
-    </div>
-  )
+  return <InvoiceDocument data={invoice} onChange={setInvoice} onReset={reset} />
 }
 
 export default App

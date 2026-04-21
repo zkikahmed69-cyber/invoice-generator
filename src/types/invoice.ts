@@ -3,7 +3,7 @@ export interface LineItem {
   description: string
   quantity: number
   unitPrice: number
-  taxRate?: number  // undefined = hérite du taux global de la facture
+  taxRate?: number
 }
 
 export type DueDatePreset = "15" | "30" | "45" | "60" | "custom"
@@ -13,6 +13,8 @@ export interface InvoiceData {
   senderName: string
   senderCompany: string
   senderAddress: string
+  senderCity?: string
+  senderZip?: string
   senderEmail: string
   senderPhone: string
   senderSiret: string
@@ -22,12 +24,16 @@ export interface InvoiceData {
   clientName: string
   clientCompany: string
   clientAddress: string
+  clientCity?: string
+  clientZip?: string
   clientEmail: string
+  clientSiren?: string
   // Facture
   invoiceNumber: string
   invoiceDate: string
   dueDate: string
   dueDatePreset: DueDatePreset
+  serviceDate?: string
   // Lignes
   lineItems: LineItem[]
   // Finances
