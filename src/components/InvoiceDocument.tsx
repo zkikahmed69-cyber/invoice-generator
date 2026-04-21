@@ -167,31 +167,58 @@ export function InvoiceDocument({ data, onChange, onReset }: Props) {
   const downloadPDF = async () => {
     if (!docRef.current) return
     setDownloading(true)
+    const el = docRef.current
+    const prevWidth = el.style.width
+    const prevMaxWidth = el.style.maxWidth
     try {
-      const [{ toPng }, { default: jsPDF }] = await Promise.all([
+      const [{ toSvg }, { default: jsPDF }] = await Promise.all([
         import("html-to-image"),
         import("jspdf"),
       ])
-      const dataUrl = await toPng(docRef.current, {
-        quality: 1,
-        pixelRatio: 2,
+      // Forcer 794px pour la capture (évite le rognage sur petits écrans)
+      el.style.width = "794px"
+      el.style.maxWidth = "794px"
+      const W = 794
+      const H = el.scrollHeight
+
+      const svgUrl = await toSvg(el, {
         backgroundColor: "#ffffff",
+        skipFonts: true,
         filter: (node: Node) => {
           if (!(node instanceof Element)) return true
           return !node.classList.contains("no-export")
         },
       })
-      const img = new Image()
-      img.src = dataUrl
-      await new Promise<void>((resolve) => { img.onload = () => resolve() })
+
+      el.style.width = prevWidth
+      el.style.maxWidth = prevMaxWidth
+
+      // img.decode() bloque sur Chrome avec oklch — on utilise onload seul
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const image = new Image()
+        image.onload = () => resolve(image)
+        image.onerror = reject
+        image.src = svgUrl
+      })
+
+      const RATIO = 2
+      const canvas = document.createElement("canvas")
+      canvas.width = W * RATIO
+      canvas.height = H * RATIO
+      const ctx = canvas.getContext("2d")!
+      ctx.fillStyle = "#ffffff"
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+
+      const pngUrl = canvas.toDataURL("image/png")
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
-      const margin = 0 // marges déjà incluses dans le padding de la feuille
       const pdfW = pdf.internal.pageSize.getWidth()
-      const contentW = pdfW - margin * 2
-      const contentH = (img.height * contentW) / img.width
-      pdf.addImage(dataUrl, "PNG", margin, margin, contentW, contentH)
+      const pdfH = (H / W) * pdfW
+      pdf.addImage(pngUrl, "PNG", 0, 0, pdfW, pdfH)
       pdf.save(`facture-${data.invoiceNumber || "XXX"}.pdf`)
     } catch (err) {
+      el.style.width = prevWidth
+      el.style.maxWidth = prevMaxWidth
       console.error("Erreur PDF:", err)
       alert("Impossible de générer le PDF.")
     } finally {
