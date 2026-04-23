@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { InvoiceDocument } from "@/components/InvoiceDocument"
 import { InvoiceDashboard } from "@/components/InvoiceDashboard"
+import { VoiceAgent } from "@/components/VoiceAgent"
 import { Button } from "@/components/ui/button"
 import { Save, FilePlus, LayoutList, Check } from "lucide-react"
 import type { InvoiceData, SavedInvoice } from "@/types/invoice"
@@ -197,6 +198,8 @@ function App() {
           onDelete={deleteInvoice}
         />
       )}
+
+      <VoiceAgent invoice={invoice} onUpdate={setInvoice} />
     </div>
   )
 }
