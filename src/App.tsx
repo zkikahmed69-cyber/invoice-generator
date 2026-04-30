@@ -3,6 +3,7 @@ import { InvoiceDocument } from "@/components/InvoiceDocument"
 import { InvoiceDashboard } from "@/components/InvoiceDashboard"
 import { VoiceAgent } from "@/components/VoiceAgent"
 import { Button } from "@/components/ui/button"
+import { ButtonGroup } from "@/components/ui/button-group"
 import { Save, FilePlus, LayoutList, Check } from "lucide-react"
 import type { InvoiceData, SavedInvoice } from "@/types/invoice"
 
@@ -148,10 +149,10 @@ function App() {
   return (
     <div>
       <nav className="sticky top-0 z-50 bg-white border-b flex items-center justify-between px-4 py-2 no-print">
-        <div className="flex gap-1">
+        <ButtonGroup>
           <Button
             size="sm"
-            variant={view === "editor" ? "default" : "ghost"}
+            variant={view === "editor" ? "default" : "outline"}
             onClick={() => setView("editor")}
           >
             <FilePlus size={15} />
@@ -159,7 +160,7 @@ function App() {
           </Button>
           <Button
             size="sm"
-            variant={view === "dashboard" ? "default" : "ghost"}
+            variant={view === "dashboard" ? "default" : "outline"}
             onClick={() => setView("dashboard")}
           >
             <LayoutList size={15} />
@@ -170,7 +171,7 @@ function App() {
               </span>
             )}
           </Button>
-        </div>
+        </ButtonGroup>
         {view === "editor" && (
           <Button size="sm" variant="outline" onClick={saveInvoice} disabled={isSaved}>
             {isSaved ? (
