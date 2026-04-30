@@ -60,7 +60,11 @@ export function VoiceAgent({ invoice, onUpdate }: VoiceAgentProps) {
     typeof window !== "undefined" &&
     (!!window.SpeechRecognition || !!window.webkitSpeechRecognition)
 
-  const effectiveKey = apiKey || import.meta.env.VITE_GEMINI_API_KEY
+  const effectiveKey = apiKey
+
+  useEffect(() => {
+    if (open && !apiKey) setShowKeyInput(true)
+  }, [open, apiKey])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -157,6 +161,12 @@ export function VoiceAgent({ invoice, onUpdate }: VoiceAgentProps) {
     setShowKeyInput(false)
   }
 
+  const clearKey = () => {
+    localStorage.removeItem(API_KEY_STORAGE)
+    setApiKey("")
+    setShowKeyInput(true)
+  }
+
   return (
     <>
       {/* Bouton flottant */}
@@ -204,18 +214,29 @@ export function VoiceAgent({ invoice, onUpdate }: VoiceAgentProps) {
 
           {/* Saisie clé API */}
           {showKeyInput && (
-            <div className="px-4 py-3 border-b bg-muted/40 flex gap-2">
-              <input
-                type="password"
-                placeholder="Colle ta clé Gemini API..."
-                value={keyInput}
-                onChange={(e) => setKeyInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && saveKey()}
-                className="flex-1 text-xs px-2 py-1.5 rounded border bg-background outline-none focus:ring-1 ring-primary"
-              />
-              <Button size="sm" className="text-xs h-7 px-2" onClick={saveKey}>
-                OK
-              </Button>
+            <div className="px-4 py-3 border-b bg-muted/40 space-y-2">
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  placeholder="Colle ta clé Gemini API..."
+                  value={keyInput}
+                  onChange={(e) => setKeyInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && saveKey()}
+                  className="flex-1 text-xs px-2 py-1.5 rounded border bg-background outline-none focus:ring-1 ring-primary"
+                  autoFocus
+                />
+                <Button size="sm" className="text-xs h-7 px-2" onClick={saveKey}>
+                  OK
+                </Button>
+              </div>
+              {effectiveKey && (
+                <button
+                  onClick={clearKey}
+                  className="text-xs text-destructive hover:underline w-full text-left"
+                >
+                  Supprimer la clé enregistrée
+                </button>
+              )}
             </div>
           )}
 
