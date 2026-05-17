@@ -527,7 +527,7 @@ export function InvoiceDocument({ data, onChange, onReset }: Props) {
                   Prix unit. HT
                 </th>
                 {!data.vatExempt && (
-                  <th className="text-right text-xs font-semibold text-gray-500 pb-2 w-20 px-1">
+                  <th className="text-right text-xs font-semibold text-gray-500 pb-2 w-24 px-2">
                     TVA %
                   </th>
                 )}
@@ -567,18 +567,16 @@ export function InvoiceDocument({ data, onChange, onReset }: Props) {
                       />
                     </td>
                     {!data.vatExempt && (
-                      <td className="py-2 px-1">
-                        <div className="relative">
+                      <td className="py-2 px-2">
+                        <div className="flex items-center justify-end gap-1.5 rounded-sm">
                           <N
                             value={effectiveTax}
                             onChange={(v) => updateItem(item.id, { ...item, taxRate: v })}
                             max={100}
                             step={0.1}
-                            className="text-right pr-5"
+                            className="min-w-0 text-right text-gray-800"
                           />
-                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
-                            %
-                          </span>
+                          <span className="shrink-0 text-xs text-gray-500">%</span>
                         </div>
                       </td>
                     )}
